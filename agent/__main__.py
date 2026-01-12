@@ -21,8 +21,8 @@ from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
 from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from a2ui.a2ui_extension import get_a2ui_agent_extension
-from agent import RestaurantAgent
-from agent_executor import RestaurantAgentExecutor
+from weather_agent import WeatherAgent
+from weather_agent_executor import WeatherAgentExecutor
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
@@ -31,6 +31,12 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load Gemini API key and set it as GOOGLE_API_KEY for the SDK
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+if gemini_api_key:
+    os.environ["GOOGLE_API_KEY"] = gemini_api_key
+    logger.info("GEMINI_API_KEY loaded and set as GOOGLE_API_KEY")
 
 
 class MissingAPIKeyError(Exception):
@@ -54,27 +60,27 @@ def main(host, port):
             extensions=[get_a2ui_agent_extension()],
         )
         skill = AgentSkill(
-            id="find_restaurants",
-            name="Find Restaurants Tool",
-            description="Helps find restaurants based on user criteria (e.g., cuisine, location).",
-            tags=["restaurant", "finder"],
-            examples=["Find me the top 10 chinese restaurants in the US"],
+            id="weather_info",
+            name="Weather Information Tool",
+            description="Provides weather forecasts and alerts for locations using MCP tools with human-in-the-loop.",
+            tags=["weather", "forecast", "alerts"],
+            examples=["What's the weather in San Francisco?", "Get weather alerts for California"],
         )
 
         base_url = f"http://{host}:{port}"
 
         agent_card = AgentCard(
-            name="Restaurant Agent",
-            description="This agent helps find restaurants based on user criteria.",
-            url=base_url,  # <-- Use base_url here
+            name="Weather Agent",
+            description="This agent provides weather information using MCP tools with human-in-the-loop approval.",
+            url=base_url,
             version="1.0.0",
-            default_input_modes=RestaurantAgent.SUPPORTED_CONTENT_TYPES,
-            default_output_modes=RestaurantAgent.SUPPORTED_CONTENT_TYPES,
+            default_input_modes=WeatherAgent.SUPPORTED_CONTENT_TYPES,
+            default_output_modes=WeatherAgent.SUPPORTED_CONTENT_TYPES,
             capabilities=capabilities,
             skills=[skill],
         )
 
-        agent_executor = RestaurantAgentExecutor(base_url=base_url)
+        agent_executor = WeatherAgentExecutor(base_url=base_url)
 
         request_handler = DefaultRequestHandler(
             agent_executor=agent_executor,
@@ -89,16 +95,13 @@ def main(host, port):
 
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=["http://localhost:5173"],
+            allow_origins=["http://localhost:3001", "http://localhost:5173"],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )
 
-        # Use absolute path based on this script's location
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        images_dir = os.path.join(script_dir, "images")
-        app.mount("/static", StaticFiles(directory=images_dir), name="static")
+        # Static files mounting removed for weather app
 
         uvicorn.run(app, host=host, port=port)
     except MissingAPIKeyError as e:

@@ -1,7 +1,7 @@
 [project]
-name = "a2ui-restaurant-finder"
+name = "a2ui-weather-app"
 version = "0.1.0"
-description = "Sample Google ADK-based Restaurant finder agent that uses a2ui UI and is hosted as an A2A server agent."
+description = "Weather app using Google ADK with MCP tools, A2UI, and human-in-the-loop."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -13,6 +13,9 @@ dependencies = [
     "litellm",
     "a2ui",
     "jsonschema>=4.0.0",
+    "mcp>=1.0.0",
+    "fastmcp>=0.9.0",
+    "httpx>=0.27.0",
 ]
 
 [tool.hatch.build.targets.wheel]

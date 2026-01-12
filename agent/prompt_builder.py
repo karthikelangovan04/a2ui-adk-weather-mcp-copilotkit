@@ -961,6 +961,173 @@ RESTAURANT_UI_EXAMPLES = """
 ---END CONFIRMATION_EXAMPLE---
 """
 
+WEATHER_UI_EXAMPLES = """
+---BEGIN WEATHER_FORECAST_EXAMPLE---
+[
+  {{ "beginRendering": {{ "surfaceId": "weather-forecast", "root": "weather-column", "styles": {{ "primaryColor": "#2196F3", "font": "Roboto" }} }} }},
+  {{ "surfaceUpdate": {{
+    "surfaceId": "weather-forecast",
+    "components": [
+      {{ "id": "weather-column", "component": {{ "Column": {{ "children": {{ "explicitList": ["location-title", "current-weather-card", "forecast-periods"] }} }} }} }},
+      {{ "id": "location-title", "component": {{ "Text": {{ "usageHint": "h1", "text": {{ "path": "location" }} }} }} }},
+      {{ "id": "current-weather-card", "component": {{ "Card": {{ "child": "current-weather-column" }} }} }},
+      {{ "id": "current-weather-column", "component": {{ "Column": {{ "children": {{ "explicitList": ["temp-row", "conditions-text", "wind-row"] }} }} }} }},
+      {{ "id": "temp-row", "component": {{ "Row": {{ "children": {{ "explicitList": ["temp-c", "temp-f"] }}, "distribution": "spaceAround" }} }} }},
+      {{ "id": "temp-c", "component": {{ "Text": {{ "usageHint": "h2", "text": {{ "path": "temperature" }} }} }} }},
+      {{ "id": "temp-f", "component": {{ "Text": {{ "usageHint": "h3", "text": {{ "path": "temperature_f" }} }} }} }},
+      {{ "id": "conditions-text", "component": {{ "Text": {{ "usageHint": "h4", "text": {{ "path": "conditions" }} }} }} }},
+      {{ "id": "wind-row", "component": {{ "Row": {{ "children": {{ "explicitList": ["wind-speed", "wind-direction"] }}, "distribution": "spaceAround" }} }} }},
+      {{ "id": "wind-speed", "component": {{ "Text": {{ "text": {{ "path": "windSpeedText" }} }} }} }},
+      {{ "id": "wind-direction", "component": {{ "Text": {{ "text": {{ "path": "windDirection" }} }} }} }},
+      {{ "id": "forecast-periods", "component": {{ "Column": {{ "children": {{ "explicitList": ["forecast-title", "periods-list"] }} }} }} }},
+      {{ "id": "forecast-title", "component": {{ "Text": {{ "usageHint": "h2", "text": {{ "literalString": "Forecast" }} }} }} }},
+      {{ "id": "periods-list", "component": {{ "List": {{ "direction": "vertical", "children": {{ "template": {{ "componentId": "period-card-template", "dataBinding": "/periods" }} }} }} }} }},
+      {{ "id": "period-card-template", "component": {{ "Card": {{ "child": "period-content" }} }} }},
+      {{ "id": "period-content", "component": {{ "Column": {{ "children": {{ "explicitList": ["period-name", "period-temp", "period-forecast"] }} }} }} }},
+      {{ "id": "period-name", "component": {{ "Text": {{ "usageHint": "h4", "text": {{ "path": "name" }} }} }} }},
+      {{ "id": "period-temp", "component": {{ "Text": {{ "text": {{ "path": "temperature" }} }} }} }},
+      {{ "id": "period-forecast", "component": {{ "Text": {{ "text": {{ "path": "forecast" }} }} }} }}
+    ]
+  }} }},
+  {{ "dataModelUpdate": {{
+    "surfaceId": "weather-forecast",
+    "path": "/",
+    "contents": [
+      {{ "key": "location", "valueString": "[Location Name]" }},
+      {{ "key": "temperature", "valueString": "[Temperature]°C" }},
+      {{ "key": "temperature_f", "valueString": "[Temperature]°F" }},
+      {{ "key": "conditions", "valueString": "[Conditions]" }},
+      {{ "key": "windSpeedText", "valueString": "[Wind Speed]" }},
+      {{ "key": "windDirection", "valueString": "[Wind Direction]" }},
+      {{ "key": "periods", "valueMap": [
+        {{ "key": "period1", "valueMap": [
+          {{ "key": "name", "valueString": "[Period Name]" }},
+          {{ "key": "temperature", "valueString": "[Temp]" }},
+          {{ "key": "forecast", "valueString": "[Forecast Text]" }}
+        ] }}
+      ] }}
+    ]
+  }} }}
+]
+---END WEATHER_FORECAST_EXAMPLE---
+
+---BEGIN WEATHER_ALERTS_EXAMPLE---
+[
+  {{ "beginRendering": {{ "surfaceId": "weather-alerts", "root": "alerts-column", "styles": {{ "primaryColor": "#FF5722", "font": "Roboto" }} }} }},
+  {{ "surfaceUpdate": {{
+    "surfaceId": "weather-alerts",
+    "components": [
+      {{ "id": "alerts-column", "component": {{ "Column": {{ "children": {{ "explicitList": ["alerts-title", "alerts-list"] }} }} }} }},
+      {{ "id": "alerts-title", "component": {{ "Text": {{ "usageHint": "h1", "text": {{ "path": "alertsCount" }} }} }} }},
+      {{ "id": "alerts-list", "component": {{ "List": {{ "direction": "vertical", "children": {{ "template": {{ "componentId": "alert-card-template", "dataBinding": "/alerts" }} }} }} }} }},
+      {{ "id": "alert-card-template", "component": {{ "Card": {{ "child": "alert-content" }} }} }},
+      {{ "id": "alert-content", "component": {{ "Column": {{ "children": {{ "explicitList": ["alert-event", "alert-severity", "alert-area", "alert-description", "alert-instructions"] }} }} }} }},
+      {{ "id": "alert-event", "component": {{ "Text": {{ "usageHint": "h3", "text": {{ "path": "event" }} }} }} }},
+      {{ "id": "alert-severity", "component": {{ "Text": {{ "text": {{ "path": "severity" }} }} }} }},
+      {{ "id": "alert-area", "component": {{ "Text": {{ "text": {{ "path": "area" }} }} }} }},
+      {{ "id": "alert-description", "component": {{ "Text": {{ "text": {{ "path": "description" }} }} }} }},
+      {{ "id": "alert-instructions", "component": {{ "Text": {{ "text": {{ "path": "instructions" }} }} }} }}
+    ]
+  }} }},
+  {{ "dataModelUpdate": {{
+    "surfaceId": "weather-alerts",
+    "path": "/",
+    "contents": [
+      {{ "key": "alertsCount", "valueString": "[X] Active Alerts" }},
+      {{ "key": "alerts", "valueMap": [
+        {{ "key": "alert1", "valueMap": [
+          {{ "key": "event", "valueString": "[Event]" }},
+          {{ "key": "severity", "valueString": "[Severity]" }},
+          {{ "key": "area", "valueString": "[Area]" }},
+          {{ "key": "description", "valueString": "[Description]" }},
+          {{ "key": "instructions", "valueString": "[Instructions]" }}
+        ] }}
+      ] }}
+    ]
+  }} }}
+]
+---END WEATHER_ALERTS_EXAMPLE---
+
+---BEGIN WEATHER_CONFIRMATION_EXAMPLE---
+[
+  {{ "beginRendering": {{ "surfaceId": "weather-confirmation", "root": "confirmation-column", "styles": {{ "primaryColor": "#4CAF50", "font": "Roboto" }} }} }},
+  {{ "surfaceUpdate": {{
+    "surfaceId": "weather-confirmation",
+    "components": [
+      {{ "id": "confirmation-column", "component": {{ "Column": {{ "children": {{ "explicitList": ["confirm-title", "location-info", "options-list", "confirm-button"] }} }} }} }},
+      {{ "id": "confirm-title", "component": {{ "Text": {{ "usageHint": "h2", "text": {{ "literalString": "Weather Information Request" }} }} }} }},
+      {{ "id": "location-info", "component": {{ "Text": {{ "usageHint": "h3", "text": {{ "path": "display_name" }} }} }} }},
+      {{ "id": "options-list", "component": {{ "List": {{ "direction": "vertical", "children": {{ "template": {{ "componentId": "option-checkbox-template", "dataBinding": "/options" }} }} }} }} }},
+      {{ "id": "option-checkbox-template", "component": {{ "Row": {{ "children": {{ "explicitList": ["option-checkbox", "option-label"] }}, "distribution": "start" }} }} }},
+      {{ "id": "option-checkbox", "component": {{ "Checkbox": {{ "checked": {{ "path": "status" }}, "action": {{ "name": "toggle_option", "context": [ {{ "key": "action", "value": {{ "path": "action" }} }} ] }} }} }} }},
+      {{ "id": "option-label", "component": {{ "Text": {{ "text": {{ "path": "description" }} }} }} }},
+      {{ "id": "confirm-button", "component": {{ "Button": {{ "child": "confirm-text", "primary": true, "action": {{ "name": "confirm_weather_selection", "context": [ {{ "key": "location", "value": {{ "path": "/location" }} }}, {{ "key": "latitude", "value": {{ "path": "/latitude" }} }}, {{ "key": "longitude", "value": {{ "path": "/longitude" }} }}, {{ "key": "state_code", "value": {{ "path": "/state_code" }} }}, {{ "key": "selected_options", "value": {{ "path": "/selected_options" }} }} ] }} }} }} }},
+      {{ "id": "confirm-text", "component": {{ "Text": {{ "text": {{ "literalString": "Get Weather" }} }} }} }}
+    ]
+  }} }},
+  {{ "dataModelUpdate": {{
+    "surfaceId": "weather-confirmation",
+    "path": "/",
+    "contents": [
+      {{ "key": "display_name", "valueString": "[Location Display Name]" }},
+      {{ "key": "location", "valueString": "[Location]" }},
+      {{ "key": "latitude", "valueNumber": 0.0 }},
+      {{ "key": "longitude", "valueNumber": 0.0 }},
+      {{ "key": "state_code", "valueString": "[State Code]" }},
+      {{ "key": "options", "valueMap": [
+        {{ "key": "option1", "valueMap": [
+          {{ "key": "description", "valueString": "Get current forecast" }},
+          {{ "key": "status", "valueBoolean": true }},
+          {{ "key": "action", "valueString": "forecast" }}
+        ] }},
+        {{ "key": "option2", "valueMap": [
+          {{ "key": "description", "valueString": "Check weather alerts" }},
+          {{ "key": "status", "valueBoolean": true }},
+          {{ "key": "action", "valueString": "alerts" }}
+        ] }}
+      ] }}
+    ]
+  }} }}
+]
+---END WEATHER_CONFIRMATION_EXAMPLE---
+"""
+
+
+def get_weather_ui_prompt(base_url: str, examples: str) -> str:
+    """
+    Constructs the full prompt with UI instructions, rules, examples, and schema for weather agent.
+
+    Args:
+        base_url: The base URL for resolving static assets.
+        examples: A string containing the specific UI examples for the weather agent.
+
+    Returns:
+        A formatted string to be used as the system prompt for the LLM.
+    """
+    formatted_examples = examples.format(base_url=base_url)
+
+    return f"""
+    You are a helpful weather assistant. Your final output MUST be a a2ui UI JSON response.
+
+    To generate the response, you MUST follow these rules:
+    1.  Your response MUST be in two parts, separated by the delimiter: `---a2ui_JSON---`.
+    2.  The first part is your conversational text response.
+    3.  The second part is a single, raw JSON object which is a list of A2UI messages.
+    4.  The JSON part MUST validate against the A2UI JSON SCHEMA provided below.
+
+    --- UI TEMPLATE RULES ---
+    -   If the query requires user confirmation for weather options, use the `WEATHER_CONFIRMATION_EXAMPLE` template.
+    -   If displaying weather forecast data, use the `WEATHER_FORECAST_EXAMPLE` template and populate with forecast data from get_forecast tool.
+    -   If displaying weather alerts, use the `WEATHER_ALERTS_EXAMPLE` template and populate with alerts data from get_alerts tool.
+    -   You can combine multiple templates if both forecast and alerts are requested.
+
+    {formatted_examples}
+
+    ---BEGIN A2UI JSON SCHEMA---
+    {A2UI_SCHEMA}
+    ---END A2UI JSON SCHEMA---
+    """
+
 
 def get_ui_prompt(base_url: str, examples: str) -> str:
     """
@@ -1005,18 +1172,23 @@ def get_text_prompt() -> str:
     Constructs the prompt for a text-only agent.
     """
     return """
-    You are a helpful restaurant finding assistant. Your final output MUST be a text response.
+    You are a helpful weather assistant. Your final output MUST be a text response.
 
     To generate the response, you MUST follow these rules:
-    1.  **For finding restaurants:**
-        a. You MUST call the `get_restaurants` tool. Extract the cuisine, location, and a specific number (`count`) of restaurants from the user's query.
-        b. After receiving the data, format the restaurant list as a clear, human-readable text response. You MUST preserve any markdown formatting (like for links) that you receive from the tool.
+    1.  **For weather queries:**
+        a. Call geocode_location to get coordinates for the location.
+        b. Call confirm_weather_query to get user confirmation on what information they want.
+        c. Based on user selection, call get_forecast and/or get_alerts tools.
+        d. Format the weather information as a clear, human-readable text response.
 
-    2.  **For booking a table (when you receive a query like 'USER_WANTS_TO_BOOK...'):**
-        a. Respond by asking the user for the necessary details to make a booking (party size, date, time, dietary requirements).
+    2.  **When presenting forecast results:**
+        a. Include temperature in both Celsius and Fahrenheit.
+        b. Include weather conditions, wind speed, and direction.
+        c. Include location name and forecast periods.
 
-    3.  **For confirming a booking (when you receive a query like 'User submitted a booking...'):**
-        a. Respond with a simple text confirmation of the booking details.
+    3.  **When presenting alerts:**
+        a. Include the number of active alerts.
+        b. List the most severe alerts first with brief descriptions.
     """
 
 
