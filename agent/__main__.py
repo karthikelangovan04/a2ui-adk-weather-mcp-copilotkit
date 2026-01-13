@@ -44,7 +44,7 @@ class MissingAPIKeyError(Exception):
 
 
 @click.command()
-@click.option("--host", default="localhost")
+@click.option("--host", default="0.0.0.0")  # Changed to 0.0.0.0 to accept connections from all interfaces
 @click.option("--port", default=10002)
 def main(host, port):
     try:
@@ -68,11 +68,13 @@ def main(host, port):
         )
 
         base_url = f"http://{host}:{port}"
+        # Use localhost for the agent card URL so clients can connect, even if server binds to 0.0.0.0
+        agent_url = f"http://localhost:{port}" if host == "0.0.0.0" else base_url
 
         agent_card = AgentCard(
             name="Weather Agent",
             description="This agent provides weather information using MCP tools with human-in-the-loop approval.",
-            url=base_url,
+            url=agent_url,
             version="1.0.0",
             default_input_modes=WeatherAgent.SUPPORTED_CONTENT_TYPES,
             default_output_modes=WeatherAgent.SUPPORTED_CONTENT_TYPES,
