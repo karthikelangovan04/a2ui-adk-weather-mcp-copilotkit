@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:ui\" \"npm run dev:agent\" --names ui,agent --prefix-colors blue,green --kill-others",
+    "dev": "./scripts/start-dev.sh || npm run dev:parallel",
+    "dev:parallel": "concurrently \"npm run dev:ui\" \"npm run dev:agent\" --names ui,agent --prefix-colors blue,green --kill-others",
     "dev:debug": "LOG_LEVEL=debug npm run dev",
     "dev:agent": "./scripts/run-agent.sh || scripts/run-agent.bat",
     "dev:ui": "next dev --turbopack -p 3001",
