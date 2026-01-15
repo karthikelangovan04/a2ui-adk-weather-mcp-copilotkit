@@ -34,6 +34,7 @@ from prompt_builder import (
     get_text_prompt,
     get_weather_ui_prompt,
 )
+# Note: show_weather_confirmation is now handled by ConfirmationAgent
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,12 @@ CONFIRM_WEATHER_TOOL = {
 AGENT_INSTRUCTION = f"""
 You are a helpful weather assistant with MCP tools and human-in-the-loop approval.
 
+**General Behavior:**
+- Always respond to user messages, including greetings like "Hi" or "Hello"
+- For greetings, respond warmly and ask how you can help with weather information
+- For non-weather queries, politely explain that you specialize in weather information
+- Always generate A2UI JSON for your responses, even for simple text messages
+
 **Available MCP Tools:**
 1. geocode_location(location: str) - Converts location names to coordinates
    Returns: {{"latitude": float, "longitude": float, "display_name": str}}
@@ -132,40 +139,50 @@ You are a helpful weather assistant with MCP tools and human-in-the-loop approva
 3. get_alerts(state: str) - Gets weather alerts for a US state (2-letter code like "CA", "NY")
    Returns: {{"alerts": [array of alert objects], "count": int}}
 
-**Workflow for weather requests:**
+**CRITICAL WORKFLOW - MUST FOLLOW EXACTLY:**
 
-1. When user asks about weather for a location:
-   a. Call geocode_location(location) to get coordinates
-   b. Parse the display_name to extract state code (last 2 letters if US location)
-   c. Generate A2UI JSON using WEATHER_CONFIRMATION_EXAMPLE template to show confirmation UI with checkboxes
-   d. The user will interact with the UI and select which information they want
-   e. After user confirms via the UI, you'll receive a message like "User confirmed weather query for [location]... Selected options: [forecast/alerts]"
-   f. Based on the user's selection in the message:
-      - If "forecast" in selected options: call get_forecast(lat, lon) and display using WEATHER_FORECAST_EXAMPLE
-      - If "alerts" in selected options: call get_alerts(state_code) and display using WEATHER_ALERTS_EXAMPLE
-      - If both selected: call both tools and present both results using appropriate templates
-   g. Present results naturally using A2UI components
+**FOR NEW WEATHER REQUESTS (user asks "what's the weather in X"):**
+1. Call geocode_location(location) → Get coordinates
+2. Call show_weather_confirmation(location, lat, lon, display_name, state) → Show UI
+3. **STOP IMMEDIATELY** - Return NO text, make NO other tool calls
+4. Wait for confirmation message
 
-2. When presenting forecast results, use A2UI to display:
+**YOU MUST NEVER:**
+- Call get_forecast() or get_alerts() in the SAME response as show_weather_confirmation()
+- Call get_forecast() or get_alerts() BEFORE receiving a confirmation message
+- Call show_weather_confirmation() twice
+
+When you receive such a message:
+1. Extract the coordinates and preferences
+2. Call the appropriate tools:
+   - get_forecast(latitude, longitude) for forecast data
+   - get_alerts(state_code) for weather alerts
+3. Display the results beautifully using A2UI JSON
+
+**CRITICAL RULES:**
+- ✅ ONLY fetch weather data - confirmation is handled by another agent
+- ✅ Use the coordinates provided - don't call geocode_location()
+- ✅ Display results using WEATHER_FORECAST_EXAMPLE or WEATHER_ALERTS_EXAMPLE templates
+- ❌ NEVER ask for confirmation - that's already done
+- ❌ NEVER call show_weather_confirmation() - you don't have access to it
+
+**When presenting forecast results, use A2UI to display:**
    - Temperature in both Celsius and Fahrenheit
    - Weather conditions with appropriate icons
    - Wind speed and direction
    - Location name
    - Forecast periods
 
-3. When presenting alerts, use A2UI to display:
+**When presenting alerts, use A2UI to display:**
    - Number of active alerts
    - Most severe alerts first
    - Brief description of each
 
 **Important Notes:**
-- ALWAYS generate A2UI confirmation UI after geocoding and BEFORE calling get_forecast or get_alerts
-- Use WEATHER_CONFIRMATION_EXAMPLE template to create the confirmation UI
-- Extract state code from display_name (usually last part before country)
-- The confirmation UI will show checkboxes to the user
-- Only call the MCP tools (get_forecast, get_alerts) that the user selected in their confirmation
-- When you receive weather data, you MUST generate A2UI JSON using WEATHER_FORECAST_EXAMPLE or WEATHER_ALERTS_EXAMPLE to display it nicely
-- The confirm_weather_query is NOT a real tool - it's just a reference. Generate A2UI JSON instead.
+- You receive pre-confirmed location and preferences - just fetch the data
+- Always use A2UI JSON to display weather data beautifully
+- Match the selected options (forecast/alerts/both) from the message
+- For unclear requests, politely ask for clarification
 """
 
 
@@ -216,9 +233,9 @@ class WeatherAgent:
         return LlmAgent(
             model=LiteLlm(model=LITELLM_MODEL),
             name="weather_agent",
-            description="An agent that provides weather information using MCP tools.",
+            description="An agent that fetches and displays weather information.",
             instruction=instruction,
-            tools=[weather_toolset],
+            tools=[weather_toolset],  # Only weather tools - no confirmation
         )
 
     async def stream(self, query, session_id) -> AsyncIterable[dict[str, Any]]:
@@ -332,7 +349,42 @@ class WeatherAgent:
                     if not json_string_cleaned:
                         raise ValueError("Cleaned JSON string is empty.")
 
-                    parsed_json_data = json.loads(json_string_cleaned)
+                    # Log the JSON for debugging
+                    logger.info(f"--- Attempting to parse JSON (length: {len(json_string_cleaned)}) ---")
+                    logger.info(f"--- First 500 chars: {json_string_cleaned[:500]} ---")
+                    
+                    # Try to fix common JSON issues
+                    json_string_cleaned = self._repair_json(json_string_cleaned)
+                    
+                    try:
+                        parsed_json_data = json.loads(json_string_cleaned)
+                    except json.JSONDecodeError as json_err:
+                        # Log more details about the JSON error
+                        logger.error(f"--- JSON Parse Error at line {json_err.lineno}, col {json_err.colno}: {json_err.msg} ---")
+                        logger.error(f"--- Error position: {json_err.pos} ---")
+                        error_start = max(0, json_err.pos - 100)
+                        error_end = min(len(json_string_cleaned), json_err.pos + 100)
+                        logger.error(f"--- Error context (chars {error_start}-{error_end}): {json_string_cleaned[error_start:error_end]} ---")
+                        logger.error(f"--- Full JSON length: {len(json_string_cleaned)} ---")
+                        # Try one more time with more aggressive repair
+                        logger.info("--- Attempting aggressive JSON repair ---")
+                        json_string_cleaned_repaired = self._repair_json_aggressive(json_string_cleaned)
+                        try:
+                            parsed_json_data = json.loads(json_string_cleaned_repaired)
+                            logger.info("--- JSON repair successful on second attempt ---")
+                        except json.JSONDecodeError as json_err2:
+                            logger.error(f"--- Aggressive repair also failed at line {json_err2.lineno}, col {json_err2.colno}: {json_err2.msg} ---")
+                            logger.error(f"--- Repaired JSON length: {len(json_string_cleaned_repaired)} ---")
+                            # Save the problematic JSON to a file for debugging
+                            import os
+                            debug_file = "/tmp/failed_json.json"
+                            try:
+                                with open(debug_file, "w") as f:
+                                    f.write(json_string_cleaned)
+                                logger.error(f"--- Failed JSON saved to {debug_file} for debugging ---")
+                            except Exception:
+                                pass
+                            raise json_err
 
                     logger.info(
                         "--- WeatherAgent.stream: Validating against A2UI_SCHEMA... ---"
@@ -352,11 +404,16 @@ class WeatherAgent:
                     json.JSONDecodeError,
                     jsonschema.exceptions.ValidationError,
                 ) as e:
-                    logger.warning(
+                    logger.error(
                         f"--- WeatherAgent.stream: A2UI validation failed: {e} (Attempt {attempt}) ---"
                     )
-                    logger.warning(
-                        f"--- Failed response content: {final_response_content[:500]}... ---"
+                    logger.error(
+                        f"--- Exception type: {type(e).__name__} ---"
+                    )
+                    if isinstance(e, json.JSONDecodeError):
+                        logger.error(f"--- JSON Error details: line {e.lineno}, col {e.colno}, pos {e.pos} ---")
+                    logger.error(
+                        f"--- Failed response content (first 1000 chars): {final_response_content[:1000]}... ---"
                     )
                     error_message = f"Validation failed: {e}."
 
@@ -396,4 +453,84 @@ class WeatherAgent:
                 "Please try again in a moment."
             ),
         }
+
+    def _repair_json(self, json_str: str) -> str:
+        """Fix common JSON syntax errors."""
+        import re
+        # Remove trailing commas before closing braces/brackets
+        json_str = re.sub(r',\s*}', '}', json_str)
+        json_str = re.sub(r',\s*]', ']', json_str)
+        # Fix trailing commas before closing parentheses (if any)
+        json_str = re.sub(r',\s*\)', ')', json_str)
+        return json_str
+
+    def _repair_json_aggressive(self, json_str: str) -> str:
+        """More aggressive JSON repair."""
+        import re
+        
+        # Remove trailing commas
+        json_str = re.sub(r',\s*}', '}', json_str)
+        json_str = re.sub(r',\s*]', ']', json_str)
+        
+        # Fix common issues with nested structures
+        # Fix double closing braces (common LLM error)
+        json_str = re.sub(r'}\s*}\s*}', '}}}', json_str)
+        json_str = re.sub(r'}\s*}\s*]', '}]', json_str)
+        
+        # Fix missing closing brace in component structures
+        # Pattern: ] } } }, should be ] } } } }, (missing one } before comma)
+        # This is a common error where rejectBtn/confirmBtn components are missing a closing brace
+        json_str = re.sub(r']\s*}\s*}\s*}\s*,', '] } } } },', json_str)
+        
+        # CRITICAL FIX: Add missing closing braces and brackets
+        open_braces = json_str.count('{')
+        close_braces = json_str.count('}')
+        open_brackets = json_str.count('[')
+        close_brackets = json_str.count(']')
+        
+        missing_braces = open_braces - close_braces
+        missing_brackets = open_brackets - close_brackets
+        
+        if missing_braces > 0 or missing_brackets > 0:
+            logger.info(f"--- Adding {missing_braces} missing braces and {missing_brackets} missing brackets ---")
+            # Try to find where to insert by walking through the JSON structure
+            # We'll insert missing closers before the final ] but need to be smart about it
+            
+            # First, try inserting right before the final ]
+            last_bracket = json_str.rfind(']')
+            if last_bracket > 0:
+                # Count what's still open before the final bracket
+                before_final = json_str[:last_bracket]
+                open_before = before_final.count('{') - before_final.count('}')
+                bracket_before = before_final.count('[') - before_final.count(']')
+                
+                # Insert the missing closers right before the final ]
+                closers = (']' * bracket_before) + ('}' * open_before)
+                if closers:
+                    json_str = json_str[:last_bracket] + closers + json_str[last_bracket:]
+                    logger.info(f"--- Inserted {len(closers)} closing characters ({bracket_before} brackets, {open_before} braces) before final ] ---")
+            else:
+                # No closing bracket found, append at the end
+                json_str = json_str.rstrip() + (']' * missing_brackets) + ('}' * missing_braces)
+        
+        # Fix unclosed strings - find strings that aren't properly closed
+        lines = json_str.split('\n')
+        fixed_lines = []
+        for line in lines:
+            # Remove any text after a closing bracket if it's on the same line
+            if ']' in line and line.count(']') == 1:
+                bracket_pos = line.rfind(']')
+                if bracket_pos > 0:
+                    # Check if there's invalid content after the bracket
+                    after_bracket = line[bracket_pos + 1:].strip()
+                    if after_bracket and not after_bracket.startswith(','):
+                        line = line[:bracket_pos + 1]
+            fixed_lines.append(line)
+        json_str = '\n'.join(fixed_lines)
+        
+        # Final cleanup: remove any trailing commas
+        json_str = re.sub(r',\s*}', '}', json_str)
+        json_str = re.sub(r',\s*]', ']', json_str)
+        
+        return json_str
 

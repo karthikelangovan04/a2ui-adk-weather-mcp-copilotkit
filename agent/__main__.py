@@ -22,7 +22,7 @@ from a2a.server.tasks import InMemoryTaskStore
 from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from a2ui.a2ui_extension import get_a2ui_agent_extension
 from weather_agent import WeatherAgent
-from weather_agent_executor import WeatherAgentExecutor
+from two_agent_executor import TwoAgentExecutor  # New two-agent architecture
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
@@ -82,7 +82,7 @@ def main(host, port):
             skills=[skill],
         )
 
-        agent_executor = WeatherAgentExecutor(base_url=base_url)
+        agent_executor = TwoAgentExecutor(base_url=base_url)
 
         request_handler = DefaultRequestHandler(
             agent_executor=agent_executor,
