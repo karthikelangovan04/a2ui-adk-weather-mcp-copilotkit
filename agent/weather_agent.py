@@ -157,14 +157,17 @@ When you receive such a message:
 2. Call the appropriate tools:
    - get_forecast(latitude, longitude) for forecast data
    - get_alerts(state_code) for weather alerts
-3. Display the results beautifully using A2UI JSON
+3. Display the results beautifully using A2UI JSON (see examples below)
 
 **CRITICAL RULES:**
 - ✅ ONLY fetch weather data - confirmation is handled by another agent
 - ✅ Use the coordinates provided - don't call geocode_location()
-- ✅ Display results using WEATHER_FORECAST_EXAMPLE or WEATHER_ALERTS_EXAMPLE templates
+- ✅ Transform tool responses into A2UI JSON format (cards with widgets)
+- ❌ NEVER return raw JSON from tools - always convert to A2UI format
 - ❌ NEVER ask for confirmation - that's already done
 - ❌ NEVER call show_weather_confirmation() - you don't have access to it
+
+**IMPORTANT: You MUST use get_weather_ui_prompt() to get the A2UI examples and schema!**
 
 **When presenting forecast results, use A2UI to display:**
    - Temperature in both Celsius and Fahrenheit

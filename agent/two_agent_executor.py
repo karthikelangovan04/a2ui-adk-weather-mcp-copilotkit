@@ -40,7 +40,7 @@ class TwoAgentExecutor(AgentExecutor):
     
     def __init__(self, base_url: str = "http://localhost:10002"):
         self.confirmation_agent = ConfirmationAgent()
-        self.weather_agent = WeatherAgent(base_url=base_url)
+        self.weather_agent = WeatherAgent(base_url=base_url, use_ui=True)
     
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
         """Cancel the current execution."""
@@ -278,7 +278,22 @@ class TwoAgentExecutor(AgentExecutor):
                         selected_options = ["forecast"]  # Default to forecast
                     
                     options_text = " and ".join(selected_options)
-                    query = f"Fetch weather for {display_name} at coordinates ({latitude}, {longitude}). State code: {state_code}. User wants: {options_text}. Call get_forecast({latitude}, {longitude})" + (f" and get_alerts('{state_code}')" if "alerts" in selected_options else "")
+                    
+                    # Build explicit instructions for the WeatherAgent
+                    query = f"""The user has confirmed they want weather information for {display_name}.
+Location: {display_name}
+Coordinates: latitude={latitude}, longitude={longitude}
+State Code: {state_code}
+User selected: {options_text}
+
+YOU MUST:"""
+                    
+                    if "forecast" in selected_options:
+                        query += f"\n1. Call get_forecast({latitude}, {longitude}) to get forecast data"
+                    if "alerts" in selected_options:
+                        query += f"\n2. Call get_alerts('{state_code}') to get weather alerts"
+                    
+                    query += f"\n\nThen display ALL the data you receive using A2UI JSON format with cards and widgets."
                     
                     logger.info(f"🌤️  Transferring to Weather Agent with query: {query}")
                     
@@ -390,7 +405,13 @@ class TwoAgentExecutor(AgentExecutor):
                 if json_string.strip():
                     try:
                         import json
-                        json_string_cleaned = json_string.strip().lstrip("```json").rstrip("```").strip()
+                        import re
+                        # Remove markdown code block markers
+                        json_string_cleaned = json_string.strip()
+                        json_string_cleaned = re.sub(r'^```json\s*', '', json_string_cleaned)
+                        json_string_cleaned = re.sub(r'\s*```$', '', json_string_cleaned)
+                        json_string_cleaned = json_string_cleaned.strip()
+                        
                         json_data = json.loads(json_string_cleaned)
                         
                         if isinstance(json_data, list):
@@ -400,6 +421,7 @@ class TwoAgentExecutor(AgentExecutor):
                             final_parts.append(create_a2ui_part(json_data))
                     except json.JSONDecodeError as e:
                         logger.error(f"Failed to parse UI JSON: {e}")
+                        logger.error(f"JSON string was: {json_string_cleaned[:200]}")
                         final_parts.append(Part(root=TextPart(text=json_string)))
             else:
                 final_parts.append(Part(root=TextPart(text=agent_response_content.strip())))
